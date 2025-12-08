@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT start_sec, end_sec FROM utterances\n        WHERE channel=$1\n        AND end_sec < $2\n        LIMIT 1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "start_sec",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 1,
+        "name": "end_sec",
+        "type_info": "Float4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Float4"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "a343313a065a93aa38070e42769b8f4108a784fc4e49b39b2b1f44d7ce9043bc"
+}

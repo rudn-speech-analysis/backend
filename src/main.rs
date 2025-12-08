@@ -1,5 +1,7 @@
+pub mod analysis_submit;
+pub mod endpoints;
 pub mod result;
-pub mod upload;
+pub mod url;
 
 use std::env::var;
 
@@ -50,7 +52,13 @@ async fn main() {
 
     let app = axum::Router::new()
         .route("/", get(index))
-        .route("/upload", post(upload::upload_audio_file))
+        .route("/upload", post(endpoints::upload::upload_audio_file))
+        .route("/recordings/{id}", get(endpoints::recording::get_recording))
+        .route("/channels/{id}", get(endpoints::channel::get_channel))
+        .route(
+            "/channels/{id}/utterances",
+            get(endpoints::utterance::get_utterances),
+        )
         .with_state(state)
         .layer(DefaultBodyLimit::max(2 * 1024 * 1024 * 1024));
 

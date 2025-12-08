@@ -1,13 +1,18 @@
-use axum::extract::{Multipart, State};
+use axum::{
+    body::Body,
+    extract::{Multipart, State},
+    http::StatusCode,
+    response::Response,
+};
 use eyre::{Context, OptionExt, eyre};
 use futures_util::TryStreamExt;
 
-use crate::{AppState, result::AppResult};
+use crate::{AppState, analysis_submit::analyze_recording, result::AppResult};
 
 pub async fn upload_audio_file(
     State(state): State<AppState>,
     mut multipart: Multipart,
-) -> AppResult<String> {
+) -> AppResult<Response> {
     let uuid = uuid::Uuid::new_v4();
     let field = multipart.next_field().await?;
     let Some(field) = field else {
@@ -56,5 +61,15 @@ pub async fn upload_audio_file(
     .await
     .wrap_err("failed to insert into database")?;
 
-    Ok(uuid.to_string())
+    // TODO: run this async
+    analyze_recording(state, uuid)
+        .await
+        .wrap_err("failed to analyze")?;
+
+    let response = Response::builder()
+        .status(StatusCode::CREATED)
+        .header("Location", format!("/recordings/{}", uuid))
+        .body(Body::from(uuid.to_string()))
+        .unwrap();
+    Ok(response)
 }

@@ -1,0 +1,46 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT * FROM channels WHERE id=$1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "recording",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "idx_in_file",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "assigned_name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "wav2vec2_age_gender",
+        "type_info": "Jsonb"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "5999f3f6eea09247be273bd49d64ed1306c2cb4d7f7515353aa3638eaf7503bf"
+}

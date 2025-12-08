@@ -1,0 +1,66 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT * FROM utterances\n        WHERE channel=$1\n        AND start_sec >= $2\n        AND end_sec <= $3\n        ORDER BY start_sec\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "channel",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "start_sec",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 3,
+        "name": "end_sec",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 4,
+        "name": "content",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "emotion2vec",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 6,
+        "name": "wav2vec2_emotion",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 7,
+        "name": "whisper",
+        "type_info": "Jsonb"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Float4",
+        "Float4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "78766a0c81d1f2ff9c8890ac77cba951de6a198fd8eeca76808008a62dfe14a8"
+}
