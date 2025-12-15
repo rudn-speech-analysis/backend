@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT start_sec, end_sec FROM utterances\n        WHERE channel=$1\n        AND end_sec < $2\n        LIMIT 1\n        ",
+  "query": "\n        SELECT start_sec, end_sec FROM segments\n        WHERE channel=$1\n        AND end_sec < $2\n        LIMIT 1\n        ",
   "describe": {
     "columns": [
       {
@@ -25,5 +25,5 @@
       false
     ]
   },
-  "hash": "a343313a065a93aa38070e42769b8f4108a784fc4e49b39b2b1f44d7ce9043bc"
+  "hash": "8c61b0de293b4a9ca2df20a67ca9129d02ef5baaa4bd50aa9cb12921627a4763"
 }

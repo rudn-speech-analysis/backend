@@ -1,8 +1,7 @@
 use axum::{
-    body::Body,
+    Json,
     extract::{Multipart, State},
-    http::StatusCode,
-    response::Response,
+    http::{HeaderMap, StatusCode},
 };
 use eyre::{Context, OptionExt, eyre};
 use futures_util::TryStreamExt;
@@ -12,7 +11,7 @@ use crate::{AppState, analysis_submit::analyze_recording, result::AppResult};
 pub async fn upload_audio_file(
     State(state): State<AppState>,
     mut multipart: Multipart,
-) -> AppResult<Response> {
+) -> AppResult<(StatusCode, HeaderMap, Json<UploadResponse>)> {
     let uuid = uuid::Uuid::new_v4();
     let field = multipart.next_field().await?;
     let Some(field) = field else {
@@ -66,10 +65,20 @@ pub async fn upload_audio_file(
         .await
         .wrap_err("failed to analyze")?;
 
-    let response = Response::builder()
-        .status(StatusCode::CREATED)
-        .header("Location", format!("/recordings/{}", uuid))
-        .body(Body::from(uuid.to_string()))
-        .unwrap();
-    Ok(response)
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        "Location",
+        format!("/recordings/{}", uuid).try_into().unwrap(),
+    );
+
+    Ok((
+        StatusCode::CREATED,
+        headers,
+        Json(UploadResponse { upload_id: uuid }),
+    ))
+}
+
+#[derive(serde::Serialize)]
+pub struct UploadResponse {
+    pub upload_id: uuid::Uuid,
 }

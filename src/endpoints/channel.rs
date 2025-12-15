@@ -22,22 +22,24 @@ pub async fn get_channel(
         return Err(eyre::eyre!("channel not found").into());
     };
 
-    let utterances_begin_url = url.url(format!("/channels/{}/utterances?start=0&end=30", id));
+    let segments_begin_url = url.url(format!("/channels/{}/segments?start=0&end=30", id));
 
     Ok(Json(ChannelData {
+        self_url: url.url(format!("/channels/{}", id)),
         recording_url: url.url(format!("/recordings/{}", row.recording)),
         idx_in_file: row.idx_in_file,
         assigned_name: row.assigned_name,
         wav2vec2_age_gender: row.w2v.0,
-        utterances_begin_url,
+        segments_begin_url,
     }))
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ChannelData {
+    self_url: String,
     recording_url: String,
     idx_in_file: i32,
     assigned_name: Option<String>,
     wav2vec2_age_gender: Wav2Vec2AgeGender,
-    utterances_begin_url: String,
+    segments_begin_url: String,
 }

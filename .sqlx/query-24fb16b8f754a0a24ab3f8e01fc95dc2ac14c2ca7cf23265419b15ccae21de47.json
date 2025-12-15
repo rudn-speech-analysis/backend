@@ -22,6 +22,31 @@
         "ordinal": 3,
         "name": "original_s3_path",
         "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "analysis_status",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "analysis_percent",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 6,
+        "name": "analysis_error",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 7,
+        "name": "analysis_started",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 8,
+        "name": "analysis_last_update",
+        "type_info": "Timestamptz"
       }
     ],
     "parameters": {
@@ -33,7 +58,12 @@
       false,
       false,
       false,
-      false
+      false,
+      false,
+      false,
+      true,
+      true,
+      true
     ]
   },
   "hash": "24fb16b8f754a0a24ab3f8e01fc95dc2ac14c2ca7cf23265419b15ccae21de47"

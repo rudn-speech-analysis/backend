@@ -2,37 +2,37 @@ use axum::{
     Json,
     extract::{Path, Query, State},
 };
+use uuid::Uuid;
 
-use crate::{AppState, analysis_submit::PhraseStats, result::AppResult, url::UrlGenerator};
+use crate::{AppState, analysis_submit::SegmentStats, result::AppResult, url::UrlGenerator};
 
 #[derive(Debug, serde::Deserialize)]
-pub struct GetUtterancesQuery {
+pub struct GetSegmentsQuery {
     start: Option<f32>,
     end: Option<f32>,
 }
 
-pub async fn get_utterances(
+pub async fn get_segments(
     State(state): State<AppState>,
     Path(channel_id): Path<uuid::Uuid>,
-    Query(query): Query<GetUtterancesQuery>,
+    Query(query): Query<GetSegmentsQuery>,
     url: UrlGenerator,
-) -> AppResult<Json<GetUtterancesResponse>> {
+) -> AppResult<Json<GetSegmentsResponse>> {
     let channel = sqlx::query!("SELECT * FROM channels WHERE id=$1", channel_id)
         .fetch_optional(&state.db)
         .await?;
 
-    let Some(channel) = channel else {
+    let Some(_channel) = channel else {
         return Err(eyre::eyre!("channel not found").into());
     };
 
     use sqlx::types::Json as SJson;
-    let utterances_inside_bounds = sqlx::query!(
+    let segments_inside_bounds = sqlx::query!(
         r#"
         SELECT *,
-        emotion2vec as "e2v: SJson<crate::analysis_submit::Emotion2Vec>",
         wav2vec2_emotion as "w2v_e: SJson<crate::analysis_submit::Wav2Vec2Emotion>",
         whisper as "w: SJson<crate::analysis_submit::Whisper>"
-        FROM utterances
+        FROM segments
         WHERE channel=$1
         AND start_sec >= $2
         AND end_sec <= $3
@@ -45,14 +45,14 @@ pub async fn get_utterances(
     .fetch_all(&state.db)
     .await?;
 
-    let utterances = utterances_inside_bounds
+    let segments = segments_inside_bounds
         .into_iter()
-        .map(|row| SingleUtteranceResponse {
+        .map(|row| SingleSegmentResponse {
+            id: row.id,
             start: row.start_sec,
             end: row.end_sec,
             text: row.content.clone(),
-            stats: PhraseStats {
-                emotion2vec: row.e2v.0,
+            stats: SegmentStats {
                 wav2vec2_emotion: row.w2v_e.0,
                 whisper: row.w.0,
             },
@@ -62,9 +62,9 @@ pub async fn get_utterances(
     let mut next_url = None;
     let mut prev_url = None;
 
-    let prev_utterance = sqlx::query!(
+    let prev_segment = sqlx::query!(
         r#"
-        SELECT start_sec, end_sec FROM utterances
+        SELECT start_sec, end_sec FROM segments
         WHERE channel=$1
         AND end_sec < $2
         LIMIT 1
@@ -75,17 +75,17 @@ pub async fn get_utterances(
     .fetch_optional(&state.db)
     .await?;
 
-    if let Some(utter) = prev_utterance {
+    if let Some(utter) = prev_segment {
         let end_time = utter.end_sec;
         let start_time = (utter.start_sec - 30.0).min(0.0);
         prev_url = Some(url.url(format!(
-            "/channels/{channel_id}/utterances?start={start_time}&end={end_time}",
+            "/channels/{channel_id}/segments?start={start_time}&end={end_time}",
         )));
     }
 
-    let next_utterance = sqlx::query!(
+    let next_segment = sqlx::query!(
         r#"
-        SELECT start_sec, end_sec FROM utterances
+        SELECT start_sec, end_sec FROM segments
         WHERE channel=$1
         AND start_sec > $2
         LIMIT 1
@@ -96,32 +96,33 @@ pub async fn get_utterances(
     .fetch_optional(&state.db)
     .await?;
 
-    if let Some(utter) = next_utterance {
+    if let Some(utter) = next_segment {
         let start_time = utter.start_sec;
         let end_time = utter.end_sec + 30.0;
         next_url = Some(url.url(format!(
-            "/channel/{channel_id}/utterances?start={start_time}&end={end_time}",
+            "/channels/{channel_id}/segments?start={start_time}&end={end_time}",
         )));
     }
 
-    Ok(Json(GetUtterancesResponse {
+    Ok(Json(GetSegmentsResponse {
         prev_url,
         next_url,
-        utterances,
+        segments,
     }))
 }
 
 #[derive(Debug, serde::Serialize)]
-pub struct GetUtterancesResponse {
+pub struct GetSegmentsResponse {
     pub prev_url: Option<String>,
     pub next_url: Option<String>,
-    pub utterances: Vec<SingleUtteranceResponse>,
+    pub segments: Vec<SingleSegmentResponse>,
 }
 
 #[derive(Debug, serde::Serialize)]
-pub struct SingleUtteranceResponse {
+pub struct SingleSegmentResponse {
+    pub id: Uuid,
     pub start: f32,
     pub end: f32,
     pub text: String,
-    pub stats: PhraseStats,
+    pub stats: SegmentStats,
 }

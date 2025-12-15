@@ -7,6 +7,30 @@ use axum::{
 
 use crate::{AppState, result::AppResult, url::UrlGenerator};
 
+#[derive(serde::Serialize)]
+pub struct RecordingRow {
+    url: String,
+    id: uuid::Uuid,
+}
+
+pub async fn list_recordings(
+    url: UrlGenerator,
+    State(state): State<AppState>,
+) -> AppResult<Json<Vec<RecordingRow>>> {
+    let rows = sqlx::query!("SELECT id FROM recordings")
+        .fetch_all(&state.db)
+        .await?;
+
+    Ok(Json(
+        rows.into_iter()
+            .map(|row| RecordingRow {
+                id: row.id,
+                url: url.url(format!("/recordings/{}", row.id)),
+            })
+            .collect(),
+    ))
+}
+
 pub async fn get_recording(
     State(state): State<AppState>,
     Path(id): Path<uuid::Uuid>,
@@ -43,17 +67,37 @@ pub async fn get_recording(
         .collect();
 
     Ok(axum::Json(RecordingData {
+        self_url: url.url(format!("/recordings/{}", id)),
         id: row.id,
         uploaded_at: row.uploaded_at,
         download_url,
         channels: channel_urls,
+        analysis_status: row.analysis_status,
+        analysis_percent_done: row.analysis_percent as f32,
+        analysis_error_message: row.analysis_error,
+        analysis_updated_at: row.analysis_last_update.unwrap_or(row.uploaded_at),
     }))
 }
 
 #[derive(serde::Serialize)]
 pub struct RecordingData {
+    self_url: String,
     id: uuid::Uuid,
     uploaded_at: chrono::DateTime<chrono::Utc>,
     download_url: String,
     channels: Vec<String>,
+    analysis_status: String,
+    analysis_percent_done: f32,
+    analysis_error_message: Option<String>,
+    analysis_updated_at: chrono::DateTime<chrono::Utc>,
+}
+
+pub async fn delete_recording(
+    State(state): State<AppState>,
+    Path(id): Path<uuid::Uuid>,
+) -> AppResult<axum::http::StatusCode> {
+    sqlx::query!("DELETE FROM recordings WHERE id=$1", id)
+        .execute(&state.db)
+        .await?;
+    Ok(axum::http::StatusCode::NO_CONTENT)
 }

@@ -7,16 +7,15 @@ CREATE TABLE channels (
     wav2vec2_age_gender JSONB NOT NULL
 );
 
-CREATE TABLE utterances (
+CREATE TABLE segments (
     id UUID PRIMARY KEY NOT NULL,
-    channel UUID NOT NULL REFERENCES channels(id),
+    channel UUID NOT NULL REFERENCES channels(id) ON DELETE CASCADE,
     start_sec REAL NOT NULL,
     end_sec REAL NOT NULL,
     content TEXT NOT NULL,
-    emotion2vec JSONB NOT NULL,
     wav2vec2_emotion JSONB NOT NULL,
     whisper JSONB NOT NULL
 );
 
-CREATE INDEX utterance_start ON utterances(channel, start_sec);
-CREATE INDEX utterance_end ON utterances(channel, end_sec);
+CREATE INDEX segment_start ON segments(channel, start_sec);
+CREATE INDEX segment_end ON segments(channel, end_sec);
