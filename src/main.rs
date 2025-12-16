@@ -8,7 +8,7 @@ use std::{env::var, sync::Arc};
 
 use axum::{
     extract::DefaultBodyLimit,
-    routing::{get, post},
+    routing::{get, post, put},
 };
 use rdkafka::config::RDKafkaLogLevel;
 
@@ -41,6 +41,7 @@ async fn main() {
         rx_results: Arc::new(tokio::sync::Mutex::new(
             conf.clone()
                 .set("group.id", "backend-app")
+                .set("allow.auto.create.topics", "true")
                 .create()
                 .expect("should be able to create kafka consumer"),
         )),
@@ -89,6 +90,10 @@ async fn main() {
             get(endpoints::recording::get_recording).delete(endpoints::recording::delete_recording),
         )
         .route("/channels/{id}", get(endpoints::channel::get_channel))
+        .route(
+            "/channels/{id}/assigned_name",
+            put(endpoints::channel::set_assigned_name),
+        )
         .route(
             "/channels/{id}/segments",
             get(endpoints::segment::get_segments),

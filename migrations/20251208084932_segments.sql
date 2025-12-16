@@ -4,7 +4,7 @@ CREATE TABLE channels (
     recording UUID NOT NULL REFERENCES recordings(id) ON DELETE CASCADE,
     idx_in_file INTEGER NOT NULL,
     assigned_name TEXT,
-    wav2vec2_age_gender JSONB NOT NULL
+    metrics_list JSONB NOT NULL
 );
 
 CREATE TABLE segments (
@@ -13,8 +13,7 @@ CREATE TABLE segments (
     start_sec REAL NOT NULL,
     end_sec REAL NOT NULL,
     content TEXT NOT NULL,
-    wav2vec2_emotion JSONB NOT NULL,
-    whisper JSONB NOT NULL
+    metrics_list JSONB NOT NULL
 );
 
 CREATE INDEX segment_start ON segments(channel, start_sec);

@@ -1,6 +1,3 @@
-use serde::{Deserialize, Serialize};
-use sqlx::types::Json;
-
 use crate::{
     AppState,
     message_queue::types::{AnalysisRequestInner, KafkaEnvelope},
@@ -63,74 +60,4 @@ pub async fn analyze_recording(state: AppState, rec_id: uuid::Uuid) -> eyre::Res
     // tx.commit().await?;
 
     Ok(())
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct SingleChannelAnalysisOutcome {
-    recording: RecordingStats,
-    phrase: Vec<SegmentStats>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct RecordingStats {
-    wav2vec2_age_gender: Wav2Vec2AgeGender,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type)]
-pub struct Wav2Vec2AgeGender {
-    age: f32,
-    female: f32,
-    male: f32,
-    child: f32,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SegmentStats {
-    pub wav2vec2_emotion: Wav2Vec2Emotion,
-    pub whisper: Whisper,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[deprecated]
-pub struct Emotion2Vec {
-    angry: f32,
-    disgusted: f32,
-    fearful: f32,
-    happy: f32,
-    neutral: f32,
-    other: f32,
-    sad: f32,
-    surprised: f32,
-    #[serde(rename = "<unk>")]
-    unk: f32,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Wav2Vec2Emotion {
-    arousal: f32,
-    dominance: f32,
-    valence: f32,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Whisper {
-    id: u64,
-    seek: u64,
-    start: f32,
-    end: f32,
-    text: String,
-    tokens: Vec<u64>,
-    temperature: f32,
-    avg_logprob: f32,
-    compression_ratio: f32,
-    no_speech_prob: f32,
-    words: Vec<WhisperWord>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct WhisperWord {
-    word: String,
-    start: f32,
-    end: f32,
-    probability: f32,
 }

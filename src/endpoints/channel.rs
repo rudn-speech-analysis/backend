@@ -4,7 +4,9 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{AppState, analysis_submit::Wav2Vec2AgeGender, result::AppResult, url::UrlGenerator};
+use crate::{
+    AppState, message_queue::types::MetricCollection, result::AppResult, url::UrlGenerator,
+};
 
 pub async fn get_channel(
     State(state): State<AppState>,
@@ -12,7 +14,7 @@ pub async fn get_channel(
     url: UrlGenerator,
 ) -> AppResult<Json<ChannelData>> {
     let row = sqlx::query!(
-        r#"SELECT *, wav2vec2_age_gender as "w2v: sqlx::types::Json<Wav2Vec2AgeGender>" FROM channels WHERE id=$1"#,
+        r#"SELECT *, metrics_list as "metrics: sqlx::types::Json<Vec<MetricCollection>>" FROM channels WHERE id=$1"#,
         id
     )
     .fetch_optional(&state.db)
@@ -22,16 +24,27 @@ pub async fn get_channel(
         return Err(eyre::eyre!("channel not found").into());
     };
 
-    let segments_begin_url = url.url(format!("/channels/{}/segments?start=0&end=30", id));
+    let segments_begin_url = url.url(format!("/channels/{}/segments?start=0&end=3600", id));
 
     Ok(Json(ChannelData {
         self_url: url.url(format!("/channels/{}", id)),
         recording_url: url.url(format!("/recordings/{}", row.recording)),
         idx_in_file: row.idx_in_file,
         assigned_name: row.assigned_name,
-        wav2vec2_age_gender: row.w2v.0,
+        metrics: row.metrics.0,
         segments_begin_url,
     }))
+}
+
+pub async fn set_assigned_name(
+    State(state): State<AppState>,
+    Path(id): Path<uuid::Uuid>,
+    Json(name): Json<Option<String>>,
+) -> AppResult<axum::http::StatusCode> {
+    sqlx::query!("UPDATE channels SET assigned_name=$1 WHERE id=$2", name, id)
+        .execute(&state.db)
+        .await?;
+    Ok(axum::http::StatusCode::NO_CONTENT)
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -40,6 +53,6 @@ pub struct ChannelData {
     recording_url: String,
     idx_in_file: i32,
     assigned_name: Option<String>,
-    wav2vec2_age_gender: Wav2Vec2AgeGender,
     segments_begin_url: String,
+    metrics: Vec<MetricCollection>,
 }

@@ -69,16 +69,11 @@ pub async fn recv_loop(state: AppState) -> eyre::Result<()> {
             types::KafkaAnalysisResponseInner::RecordingMetrics(recording_metrics) => {
                 let mut tx = state.db.begin().await?;
                 sqlx::query!(
-                    "INSERT INTO recording_stats (recording_id, duration_seconds, sample_rate, channels, bit_depth, max_dbfs, rms, raw_data_length) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+                    "INSERT INTO recording_stats (recording_id, metrics_list) VALUES ($1, $2)",
                     response.id,
-                    recording_metrics.audio.duration_seconds,
-                    recording_metrics.audio.sample_rate as i32,
-                    recording_metrics.audio.channels as i32,
-                    recording_metrics.audio.bit_depth as i32,
-                    recording_metrics.audio.max_dbfs,
-                    recording_metrics.audio.rms as f32,
-                    recording_metrics.audio.raw_data_length as i64
-                ).execute(&mut *tx)
+                    sqlx::types::Json(recording_metrics.metrics) as _
+                )
+                .execute(&mut *tx)
                 .await?;
                 sqlx::query!(
                     "UPDATE recordings SET analysis_status='done', analysis_percent=100, analysis_last_update=now() WHERE id=$1",
@@ -92,11 +87,11 @@ pub async fn recv_loop(state: AppState) -> eyre::Result<()> {
                 let channel_id = uuid::Uuid::new_v4();
                 let mut tx = state.db.begin().await?;
                 sqlx::query!(
-                    "INSERT INTO channels (id, recording, idx_in_file, wav2vec2_age_gender) VALUES ($1, $2, $3, $4)",
+                    "INSERT INTO channels (id, recording, idx_in_file, metrics_list) VALUES ($1, $2, $3, $4)",
                     channel_id,
                     response.id,
                     channel_metrics.idx,
-                    sqlx::types::Json(channel_metrics.age_gender) as _,
+                    sqlx::types::Json(channel_metrics.metrics) as _,
                 )
                 .execute(&mut *tx)
                 .await?;
@@ -104,14 +99,13 @@ pub async fn recv_loop(state: AppState) -> eyre::Result<()> {
                 for segment in channel_metrics.segments {
                     let segment_id = uuid::Uuid::new_v4();
                     sqlx::query!(
-                        "INSERT INTO segments (id, channel, start_sec, end_sec, wav2vec2_emotion, whisper, content) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+                        "INSERT INTO segments (id, channel, start_sec, end_sec, content, metrics_list) VALUES ($1, $2, $3, $4, $5, $6)",
                         segment_id,
                         channel_id,
-                        segment.whisper.start,
-                        segment.whisper.end,
-                        sqlx::types::Json(segment.emotion) as _,
-                        sqlx::types::Json(segment.whisper.clone()) as _,
-                        segment.whisper.text,
+                        segment.start,
+                        segment.end,
+                        segment.text,
+                        sqlx::types::Json(segment.metrics) as _,
                     )
                     .execute(&mut *tx)
                     .await?;
@@ -126,6 +120,20 @@ pub async fn recv_loop(state: AppState) -> eyre::Result<()> {
                 tx.commit().await?;
             }
             types::KafkaAnalysisResponseInner::ProgressMsg(progress_msg) => {
+                let existing_progress = sqlx::query!(
+                    "SELECT analysis_percent FROM recordings WHERE id=$1",
+                    response.id
+                )
+                .fetch_optional(&state.db)
+                .await?
+                .map(|row| row.analysis_percent);
+
+                if let Some(existing_progress) = existing_progress {
+                    if existing_progress > progress_msg.percent_done {
+                        continue;
+                    }
+                }
+
                 if progress_msg.percent_done == 100 {
                     sqlx::query!(
                         "UPDATE recordings SET analysis_status='done', analysis_percent=100, analysis_last_update=now() WHERE id=$1",

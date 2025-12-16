@@ -5,7 +5,9 @@ use axum::{
     extract::{Path, State},
 };
 
-use crate::{AppState, result::AppResult, url::UrlGenerator};
+use crate::{
+    AppState, message_queue::types::MetricCollection, result::AppResult, url::UrlGenerator,
+};
 
 #[derive(serde::Serialize)]
 pub struct RecordingRow {
@@ -36,9 +38,16 @@ pub async fn get_recording(
     Path(id): Path<uuid::Uuid>,
     url: UrlGenerator,
 ) -> AppResult<Json<RecordingData>> {
-    let row = sqlx::query!("SELECT * FROM recordings WHERE id=$1", id)
-        .fetch_optional(&state.db)
-        .await?;
+    let row = sqlx::query!(
+        "SELECT recordings.*,
+    recording_stats.metrics_list AS \"metrics: Option<sqlx::types::Json<Vec<MetricCollection>>>\"
+    FROM recordings
+    LEFT JOIN recording_stats ON recordings.id = recording_stats.recording_id
+    WHERE id=$1",
+        id
+    )
+    .fetch_optional(&state.db)
+    .await?;
 
     let Some(row) = row else {
         return Err(eyre::eyre!("recording not found").into());
@@ -72,6 +81,7 @@ pub async fn get_recording(
         uploaded_at: row.uploaded_at,
         download_url,
         channels: channel_urls,
+        metrics: row.metrics.map(|m| m.0),
         analysis_status: row.analysis_status,
         analysis_percent_done: row.analysis_percent as f32,
         analysis_error_message: row.analysis_error,
@@ -86,6 +96,7 @@ pub struct RecordingData {
     uploaded_at: chrono::DateTime<chrono::Utc>,
     download_url: String,
     channels: Vec<String>,
+    metrics: Option<Vec<MetricCollection>>,
     analysis_status: String,
     analysis_percent_done: f32,
     analysis_error_message: Option<String>,

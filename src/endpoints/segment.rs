@@ -4,7 +4,9 @@ use axum::{
 };
 use uuid::Uuid;
 
-use crate::{AppState, analysis_submit::SegmentStats, result::AppResult, url::UrlGenerator};
+use crate::{
+    AppState, message_queue::types::MetricCollection, result::AppResult, url::UrlGenerator,
+};
 
 #[derive(Debug, serde::Deserialize)]
 pub struct GetSegmentsQuery {
@@ -30,8 +32,7 @@ pub async fn get_segments(
     let segments_inside_bounds = sqlx::query!(
         r#"
         SELECT *,
-        wav2vec2_emotion as "w2v_e: SJson<crate::analysis_submit::Wav2Vec2Emotion>",
-        whisper as "w: SJson<crate::analysis_submit::Whisper>"
+        metrics_list as "metrics: SJson<Vec<MetricCollection>>"
         FROM segments
         WHERE channel=$1
         AND start_sec >= $2
@@ -52,10 +53,7 @@ pub async fn get_segments(
             start: row.start_sec,
             end: row.end_sec,
             text: row.content.clone(),
-            stats: SegmentStats {
-                wav2vec2_emotion: row.w2v_e.0,
-                whisper: row.w.0,
-            },
+            metrics: row.metrics.0,
         })
         .collect();
 
@@ -77,7 +75,7 @@ pub async fn get_segments(
 
     if let Some(utter) = prev_segment {
         let end_time = utter.end_sec;
-        let start_time = (utter.start_sec - 30.0).min(0.0);
+        let start_time = (utter.start_sec - 1800.0).min(0.0);
         prev_url = Some(url.url(format!(
             "/channels/{channel_id}/segments?start={start_time}&end={end_time}",
         )));
@@ -98,7 +96,7 @@ pub async fn get_segments(
 
     if let Some(utter) = next_segment {
         let start_time = utter.start_sec;
-        let end_time = utter.end_sec + 30.0;
+        let end_time = utter.end_sec + 1800.0;
         next_url = Some(url.url(format!(
             "/channels/{channel_id}/segments?start={start_time}&end={end_time}",
         )));
@@ -124,5 +122,5 @@ pub struct SingleSegmentResponse {
     pub start: f32,
     pub end: f32,
     pub text: String,
-    pub stats: SegmentStats,
+    pub metrics: Vec<MetricCollection>,
 }
