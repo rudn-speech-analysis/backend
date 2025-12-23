@@ -31,7 +31,6 @@ pub struct Segment {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChannelMetrics {
     pub idx: i32,
-    pub talk_percent: f32,
     pub segments: Vec<Segment>,
     pub metrics: Vec<MetricCollection>,
 }

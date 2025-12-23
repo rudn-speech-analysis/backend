@@ -20,6 +20,7 @@ pub struct KafkaKonnections {
 
 impl KafkaKonnections {
     pub async fn send_request(&self, request: &types::AnalysisRequest) -> eyre::Result<()> {
+        tracing::info!("sending request to kafka: {request:?}");
         let bytes = serde_json::to_vec(request).unwrap();
         let record: FutureRecord<'_, (), Vec<u8>> =
             FutureRecord::to("analysis_requests").payload(&bytes);
@@ -63,6 +64,14 @@ pub async fn recv_loop(state: AppState) -> eyre::Result<()> {
                 tracing::warn!("failed to deserialize message: {why}");
                 continue;
             }
+        };
+
+        let Some(_) = sqlx::query!("SELECT id FROM recordings WHERE id=$1", response.id)
+            .fetch_optional(&state.db)
+            .await?
+        else {
+            tracing::warn!("recording not found, skipping");
+            continue;
         };
 
         match response.data {

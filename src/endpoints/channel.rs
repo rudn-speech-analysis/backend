@@ -41,10 +41,18 @@ pub async fn set_assigned_name(
     Path(id): Path<uuid::Uuid>,
     Json(name): Json<Option<String>>,
 ) -> AppResult<axum::http::StatusCode> {
-    sqlx::query!("UPDATE channels SET assigned_name=$1 WHERE id=$2", name, id)
-        .execute(&state.db)
-        .await?;
-    Ok(axum::http::StatusCode::NO_CONTENT)
+    tracing::info!("set assigned name for channel {id} to {name:?}");
+    if let Some(name) = name {
+        sqlx::query!("UPDATE channels SET assigned_name=$1 WHERE id=$2", name, id)
+            .execute(&state.db)
+            .await?;
+        Ok(axum::http::StatusCode::NO_CONTENT)
+    } else {
+        sqlx::query!("UPDATE channels SET assigned_name=NULL WHERE id=$1", id)
+            .execute(&state.db)
+            .await?;
+        return Ok(axum::http::StatusCode::NO_CONTENT);
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
