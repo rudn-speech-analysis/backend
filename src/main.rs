@@ -11,6 +11,7 @@ use axum::{
     routing::{get, post, put},
 };
 use rdkafka::config::RDKafkaLogLevel;
+use tower_http::cors::{Cors, CorsLayer};
 
 use crate::message_queue::KafkaKonnections;
 
@@ -99,7 +100,8 @@ async fn main() {
             get(endpoints::segment::get_segments),
         )
         .with_state(state)
-        .layer(DefaultBodyLimit::max(2 * 1024 * 1024 * 1024));
+        .layer(DefaultBodyLimit::max(2 * 1024 * 1024 * 1024))
+        .layer(CorsLayer::very_permissive());
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
         .await

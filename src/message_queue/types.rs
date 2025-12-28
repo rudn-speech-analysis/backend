@@ -37,7 +37,9 @@ pub struct ChannelMetrics {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProgressMsg {
-    pub percent_done: i32,
+    pub percent_done: Option<i32>,
+    pub channel: Option<i32>,
+    pub description: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

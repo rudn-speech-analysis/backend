@@ -85,6 +85,8 @@ pub async fn get_recording(
         analysis_status: row.analysis_status,
         analysis_percent_done: row.analysis_percent as f32,
         analysis_error_message: row.analysis_error,
+        analysis_channel: row.analysis_channel,
+        analysis_description: row.analysis_description,
         analysis_updated_at: row.analysis_last_update.unwrap_or(row.uploaded_at),
     }))
 }
@@ -99,6 +101,8 @@ pub struct RecordingData {
     metrics: Option<Vec<MetricCollection>>,
     analysis_status: String,
     analysis_percent_done: f32,
+    analysis_channel: Option<i32>,
+    analysis_description: Option<String>,
     analysis_error_message: Option<String>,
     analysis_updated_at: chrono::DateTime<chrono::Utc>,
 }

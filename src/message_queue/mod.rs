@@ -129,36 +129,15 @@ pub async fn recv_loop(state: AppState) -> eyre::Result<()> {
                 tx.commit().await?;
             }
             types::KafkaAnalysisResponseInner::ProgressMsg(progress_msg) => {
-                let existing_progress = sqlx::query!(
-                    "SELECT analysis_percent FROM recordings WHERE id=$1",
-                    response.id
-                )
-                .fetch_optional(&state.db)
-                .await?
-                .map(|row| row.analysis_percent);
-
-                if let Some(existing_progress) = existing_progress {
-                    if existing_progress > progress_msg.percent_done {
-                        continue;
-                    }
-                }
-
-                if progress_msg.percent_done == 100 {
-                    sqlx::query!(
-                        "UPDATE recordings SET analysis_status='done', analysis_percent=100, analysis_last_update=now() WHERE id=$1",
-                        response.id
-                    )
-                    .execute(&state.db)
-                    .await?;
-                } else {
-                    sqlx::query!(
-                    "UPDATE recordings SET analysis_status='running', analysis_percent=$1, analysis_last_update=now() WHERE id=$2",
-                    progress_msg.percent_done,
+                sqlx::query!(
+                    "UPDATE recordings SET analysis_status='running', analysis_percent=$1, analysis_description=$2, analysis_channel=$3, analysis_last_update=now() WHERE id=$4",
+                    progress_msg.percent_done.unwrap_or_default(),
+                    progress_msg.description,
+                    progress_msg.channel,
                     response.id
                 )
                 .execute(&state.db)
                 .await?;
-                }
             }
             types::KafkaAnalysisResponseInner::ErrorMsg(error_msg) => {
                 sqlx::query!(
