@@ -14,9 +14,8 @@ pub async fn upload_audio_file(
 ) -> AppResult<(StatusCode, HeaderMap, Json<UploadResponse>)> {
     let uuid = uuid::Uuid::new_v4();
     let mut audio_filename: Option<String> = None;
-    let mut transcript_filename: Option<String> = None;
     let mut transcript_path: Option<String> = None;
-    let mut diarize = false;
+    let mut diarize = None;
 
     while let Some(field) = multipart.next_field().await? {
         let name = field.name().ok_or_eyre("field must have name")?.to_owned();
@@ -55,9 +54,7 @@ pub async fn upload_audio_file(
 
             audio_filename = Some(filename);
         } else if name == "transcript" {
-            if let Some(filename) = field.file_name() {
-                let filename = filename.to_owned();
-
+            if let Some(_) = field.file_name() {
                 let mut reader =
                     tokio_util::io::StreamReader::new(field.map_err(|multipart_error| {
                         std::io::Error::new(std::io::ErrorKind::Other, multipart_error)
@@ -78,12 +75,15 @@ pub async fn upload_audio_file(
                     .into());
                 }
 
-                transcript_filename = Some(filename);
                 transcript_path = Some(format!("original_transcript/{uuid}"));
             }
         } else if name == "diarize" {
             let text = field.text().await.unwrap_or_default();
-            diarize = !text.is_empty();
+            match text.as_str() {
+                "true" => diarize = Some(true),
+                "false" => diarize = Some(false),
+                _ => diarize = None,
+            }
         }
     }
 

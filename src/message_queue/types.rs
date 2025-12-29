@@ -10,7 +10,7 @@ pub struct KafkaEnvelope<T> {
 pub struct AnalysisRequestInner {
     pub download_url: String,
     pub transcript_url: Option<String>,
-    pub force_diarize: bool,
+    pub force_diarize: Option<bool>,
 }
 
 pub type AnalysisRequest = KafkaEnvelope<AnalysisRequestInner>;
@@ -88,6 +88,7 @@ pub enum Metric {
         description: Option<String>,
         unit: Option<String>,
     },
+    #[serde(rename = "str")]
     String {
         name: String,
         value: Option<String>,
