@@ -9,6 +9,8 @@ pub struct KafkaEnvelope<T> {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AnalysisRequestInner {
     pub download_url: String,
+    pub transcript_url: Option<String>,
+    pub force_diarize: bool,
 }
 
 pub type AnalysisRequest = KafkaEnvelope<AnalysisRequestInner>;
@@ -76,25 +78,25 @@ pub struct MetricCollection {
 pub enum Metric {
     Int {
         name: String,
-        value: i64,
+        value: Option<i64>,
         description: Option<String>,
         unit: Option<String>,
     },
     Float {
         name: String,
-        value: f32,
+        value: Option<f32>,
         description: Option<String>,
         unit: Option<String>,
     },
     String {
         name: String,
-        value: String,
+        value: Option<String>,
         description: Option<String>,
         unit: Option<String>,
     },
     Bool {
         name: String,
-        value: bool,
+        value: Option<bool>,
         description: Option<String>,
         unit: Option<String>,
     },

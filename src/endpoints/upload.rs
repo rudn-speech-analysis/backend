@@ -13,54 +13,100 @@ pub async fn upload_audio_file(
     mut multipart: Multipart,
 ) -> AppResult<(StatusCode, HeaderMap, Json<UploadResponse>)> {
     let uuid = uuid::Uuid::new_v4();
-    let field = multipart.next_field().await?;
-    let Some(field) = field else {
-        return Err(eyre!("no file in upload").into());
-    };
+    let mut audio_filename: Option<String> = None;
+    let mut transcript_filename: Option<String> = None;
+    let mut transcript_path: Option<String> = None;
+    let mut diarize = false;
 
-    let filename = field
-        .file_name()
-        .ok_or_eyre("uploaded file should have filename")?
-        .to_owned();
-    // let content_type = field
-    //     .content_type()
-    //     .ok_or_eyre("uploaded file should have content type")?
-    //     .to_owned();
-    // if !content_type.starts_with("audio/") {
-    //     return Err(eyre!("file is not audio").into());
-    // }
+    while let Some(field) = multipart.next_field().await? {
+        let name = field.name().ok_or_eyre("field must have name")?.to_owned();
 
-    let mut reader = tokio_util::io::StreamReader::new(field.map_err(|multipart_error| {
-        std::io::Error::new(std::io::ErrorKind::Other, multipart_error)
-    }));
+        if name == "audio" {
+            let filename = field
+                .file_name()
+                .ok_or_eyre("uploaded audio file should have filename")?
+                .to_owned();
+            // let content_type = field
+            //     .content_type()
+            //     .ok_or_eyre("uploaded file should have content type")?
+            //     .to_owned();
+            // if !content_type.starts_with("audio/") {
+            //     return Err(eyre!("file is not audio").into());
+            // }
 
-    let response = state
-        .s3
-        .put_object_stream_builder(format!("original_upload/{uuid}"))
-        .execute_stream(&mut reader)
-        .await
-        .wrap_err("failed to upload to storage")?;
+            let mut reader = tokio_util::io::StreamReader::new(field.map_err(|multipart_error| {
+                std::io::Error::new(std::io::ErrorKind::Other, multipart_error)
+            }));
 
-    if response.status_code() != 200 {
-        return Err(eyre!(format!(
-            "failed to upload to storage (status code: {})",
-            response.status_code()
-        ))
-        .into());
+            let response = state
+                .s3
+                .put_object_stream_builder(format!("original_upload/{uuid}"))
+                .execute_stream(&mut reader)
+                .await
+                .wrap_err("failed to upload audio to storage")?;
+
+            if response.status_code() != 200 {
+                return Err(eyre!(format!(
+                    "failed to upload audio to storage (status code: {})",
+                    response.status_code()
+                ))
+                .into());
+            }
+
+            audio_filename = Some(filename);
+        } else if name == "transcript" {
+            if let Some(filename) = field.file_name() {
+                let filename = filename.to_owned();
+
+                let mut reader =
+                    tokio_util::io::StreamReader::new(field.map_err(|multipart_error| {
+                        std::io::Error::new(std::io::ErrorKind::Other, multipart_error)
+                    }));
+
+                let response = state
+                    .s3
+                    .put_object_stream_builder(format!("original_transcript/{uuid}"))
+                    .execute_stream(&mut reader)
+                    .await
+                    .wrap_err("failed to upload transcript to storage")?;
+
+                if response.status_code() != 200 {
+                    return Err(eyre!(format!(
+                        "failed to upload transcript to storage (status code: {})",
+                        response.status_code()
+                    ))
+                    .into());
+                }
+
+                transcript_filename = Some(filename);
+                transcript_path = Some(format!("original_transcript/{uuid}"));
+            }
+        } else if name == "diarize" {
+            let text = field.text().await.unwrap_or_default();
+            diarize = !text.is_empty();
+        }
     }
 
+    let audio_filename = if let Some(filename) = audio_filename {
+        filename
+    } else {
+        return Err(eyre!("no audio file in upload").into());
+    };
+
     sqlx::query!(
-        "INSERT INTO recordings (id, uploaded_at, original_filename, original_s3_path) VALUES ($1, $2, $3, $4)",
+        "INSERT INTO recordings (id, uploaded_at, original_filename, original_s3_path, force_diarize, original_transcript_s3_path) VALUES ($1, $2, $3, $4, $5, $6)",
         uuid,
         chrono::Utc::now(),
-        filename,
-        format!("original_upload/{uuid}")
+        audio_filename,
+        format!("original_upload/{uuid}"),
+        diarize,
+        transcript_path,
     )
     .execute(&state.db)
     .await
     .wrap_err("failed to insert into database")?;
 
-    // TODO: run this async
+    // TODO: use the extra fields (diarize, transcript_path) in analysis
     analyze_recording(state, uuid)
         .await
         .wrap_err("failed to analyze")?;

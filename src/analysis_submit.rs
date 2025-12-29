@@ -12,12 +12,22 @@ pub async fn analyze_recording(state: AppState, rec_id: uuid::Uuid) -> eyre::Res
         .s3
         .presign_get(row.original_s3_path, 3600, None)
         .await?;
+    let transcript_url = match row.original_transcript_s3_path {
+        Some(path) => Some(state.s3.presign_get(path, 3600, None).await?),
+        None => None,
+    };
+
+    let force_diarize = row.force_diarize;
 
     state
         .kafka
         .send_request(&KafkaEnvelope {
             id: rec_id,
-            data: AnalysisRequestInner { download_url },
+            data: AnalysisRequestInner {
+                download_url,
+                transcript_url,
+                force_diarize,
+            },
         })
         .await?;
 

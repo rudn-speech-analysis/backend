@@ -11,7 +11,7 @@ use axum::{
     routing::{get, post, put},
 };
 use rdkafka::config::RDKafkaLogLevel;
-use tower_http::cors::{Cors, CorsLayer};
+use tower_http::cors::CorsLayer;
 
 use crate::message_queue::KafkaKonnections;
 
